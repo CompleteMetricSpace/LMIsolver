@@ -4,6 +4,17 @@ include("projection.jl")
 function solveUnstructured(A,B)
     n = length(A)
     m = size(A[1],1)
+
+    #Homogenize problem
+    Ah = Array{Matrix{Float64}}(undef,n+1)
+    for j in 1:n
+        Ah[j] = [A[j] zeros(m,1); zeros(1,m) 0]
+    end
+    Ah[n+1] = [B zeros(m,1);zeros(1,m) 1]
+
+    #Select linearly independent set
+    
+
     error("Not implemented yet")
 end
 
@@ -24,7 +35,7 @@ with the projection algorithm
   is the solution to Ax = X > 0
 
 """
-function solveUnstructuredHomogeneous(A;tol=1e15)
+function solveUnstructuredHomogeneous(A;tol=1e15,method="cholesky")
     n = length(A)
     m = size(A[1],1)
 
@@ -36,7 +47,7 @@ function solveUnstructuredHomogeneous(A;tol=1e15)
     terminate = false
     while !terminate
         #Project onto range of A
-        x = projectUnstructured(A,X,invX)
+        x = projectUnstructured(A,X,invX,method=method)
         Xp = eval(A,x)
         if isposdef(Xp)
             return (x,Xp)
@@ -46,7 +57,7 @@ function solveUnstructuredHomogeneous(A;tol=1e15)
             invX = inv(X)
         end
         if norm(invX) > tol
-            return nothing #Probably infeasible
+            return (nothing,X) #Probably infeasible
         end
     end
 end
@@ -67,7 +78,7 @@ function getNextStep(X,Xp,invX;search=false)
         #Just compute the crude lower bound on pi(gamma)
         rho_inf = maximum(abs.(eigvals(psi)))
         gamma = 1/(1+rho_inf)
-        return X*inv(X-gamma*(Xp-X))*X
+        return Symmetric(X*inv(X-gamma*(Xp-X))*X) #Need to symmetrize (rounding)
     end
 end
 

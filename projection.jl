@@ -13,11 +13,12 @@ Computes the projection of X onto the range of A in the S-metric
                         dimension as X
 
 # Returns
-- 'x::Vector{Float64}`: a vector such that Ax is the projection of X 
+- 'x::Vector{Float64}`: a vector such that Ax is the projection of X
 """
 function projectUnstructured(A,X,S;method="cholesky")
     n = length(A)
     m = size(A[1],1)
+    M = div(m*(m+1),2)
     if method == "cholesky"
         #Create the matrix H and vector q
         H = zeros(n,n)
@@ -36,9 +37,35 @@ function projectUnstructured(A,X,S;method="cholesky")
         return x
 
     elseif method == "QR"
-        #TODO Implement QR-decomposition method
-        error("Not implemented yet")
+        #TODO Efficiency when using upper-triangular matrices
+        L = cholesky(S).U
+        #Create basis matrix B
+        B = zeros(M,n)
+        for j in 1:n
+            B[:,j] = symToVec(L'*A[j]*L)
+        end
+        q = symToVec(L'*X*L)
+        Q, R = qr(B)
+        x = UpperTriangular(R) \ (Q'*q)[1:n]
+        return x
     else
         error("Unknown method: method must be either \"cholesky\" or \"QR\"")
     end
+end
+
+function symToVec(A::Matrix{Float64})
+    m = size(A,1)
+    v = zeros(div(m*(m+1),2))
+    for i in 1:m
+        for j in i:m
+            v[m*(i-1)-div(i*(i-1),2)+j] = A[i,j]
+        end
+    end
+    return v
+end
+
+function vecToSym(v,m)
+    #TODO: Efficiency
+    return [i <= j ? v[m*(i-1)-div(i*(i-1),2)+j] : v[m*(j-1)-div(j*(j-1),2)+i]
+                                                         for i in 1:m, j in 1:m]
 end
