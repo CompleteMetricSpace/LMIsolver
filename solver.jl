@@ -1,9 +1,12 @@
 using LinearAlgebra
 include("projection.jl")
+include("helper.jl")
 
-function solveUnstructured(A,B)
+function solveUnstructured(A,B;tol=1e15,method="cholesky")
     n = length(A)
     m = size(A[1],1)
+
+    #TODO: Optimize for space usage
 
     #Homogenize problem
     Ah = Array{Matrix{Float64}}(undef,n+1)
@@ -13,9 +16,26 @@ function solveUnstructured(A,B)
     Ah[n+1] = [B zeros(m,1);zeros(1,m) 1]
 
     #Select linearly independent set
-    
+    Ahvec = hcat([symToVec(Ah[i]) for i in 1:n+1]...)
+    li = selectLIColumns!(Ahvec)
+    Ahli = [Ah[j] for j in li]
 
-    error("Not implemented yet")
+    #Solve problem
+    (xli,X) = solveUnstructuredHomogeneous(Ahli,tol=tol,method=method)
+
+    if xli == nothing
+        return (nothing, X[1:end-1,1:end-1])
+    end
+    #Substitute back solution
+    x = zeros(n+1)
+    for j in 1:length(li)
+        x[li[j]] = xli[j]
+    end
+
+    #Substitute and return inhomogeneous solution
+    x = x/x[end]
+    X = X/x[end]
+    return (x[1:end-1],X[1:end-1,1:end-1])
 end
 
 @doc raw"""
@@ -49,6 +69,7 @@ function solveUnstructuredHomogeneous(A;tol=1e15,method="cholesky")
         #Project onto range of A
         x = projectUnstructured(A,X,invX,method=method)
         Xp = eval(A,x)
+        #print("Eigvals Xp: ",min(eigvals(Xp)...))
         if isposdef(Xp)
             return (x,Xp)
         else

@@ -32,6 +32,7 @@ function projectUnstructured(A,X,S;method="cholesky")
         end
 
         #Solve system Hx = q
+        println("Eigenvals: ",eigvals(H))
         x = cholesky(H) \ q
 
         return x
@@ -53,7 +54,7 @@ function projectUnstructured(A,X,S;method="cholesky")
     end
 end
 
-function symToVec(A::Matrix{Float64})
+function symToVec(A)
     m = size(A,1)
     v = zeros(div(m*(m+1),2))
     for i in 1:m
