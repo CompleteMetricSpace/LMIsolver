@@ -32,7 +32,7 @@ function projectUnstructured(A,X,S;method="cholesky")
         end
 
         #Solve system Hx = q
-        println("Eigenvals: ",eigvals(H))
+        #println("Eigenvals: ",eigvals(H))
         x = cholesky(H) \ q
 
         return x

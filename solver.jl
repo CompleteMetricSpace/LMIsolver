@@ -2,23 +2,12 @@ using LinearAlgebra
 include("projection.jl")
 include("helper.jl")
 
-function solveUnstructured(A,B;tol=1e15,method="cholesky")
+function optimizeUnstructured(A,B,c;tol=1e15,method="cholesky")
     n = length(A)
     m = size(A[1],1)
 
-    #TODO: Optimize for space usage
-
-    #Homogenize problem
-    Ah = Array{Matrix{Float64}}(undef,n+1)
-    for j in 1:n
-        Ah[j] = [A[j] zeros(m,1); zeros(1,m) 0]
-    end
-    Ah[n+1] = [B zeros(m,1);zeros(1,m) 1]
-
-    #Select linearly independent set
-    Ahvec = hcat([symToVec(Ah[i]) for i in 1:n+1]...)
-    li = selectLIColumns!(Ahvec)
-    Ahli = [Ah[j] for j in li]
+    #Create homogeneous problem
+    Ahli, li = convertToLIHomogeneous(A,B)
 
     #Solve problem
     (xli,X) = solveUnstructuredHomogeneous(Ahli,tol=tol,method=method)
@@ -26,6 +15,44 @@ function solveUnstructured(A,B;tol=1e15,method="cholesky")
     if xli == nothing
         return (nothing, X[1:end-1,1:end-1])
     end
+
+
+    if c == nothing
+        return substituteBackInhomogeneous(xli,X,li,n)
+    else
+        cli = vcat(c,0)
+        dli = vcat(zeros())
+        #TODO: How to modify c to get a problem equivalent to the initial problem
+        error("Not implemented yet")
+    end
+end
+
+
+
+
+
+function convertToLIHomogeneous(A,B)
+    n = length(A)
+    m = size(A[1],1)
+
+    #TODO: Optimize for space usage
+
+    #Select linearly independent set
+    Avec = hcat([symToVec(A[i]) for i in 1:n+1]...)
+    li = selectLIColumns!(Avec)
+    k = length(li)
+
+    #Homogenize problem
+    Ah = Array{Matrix{Float64}}(undef,k+1)
+    for j in li
+        Ah[j] = [A[j] zeros(m,1); zeros(1,m) 0]
+    end
+    Ah[end] = [B zeros(m,1);zeros(1,m) 1]
+
+    return Ah, li
+end
+
+function substituteBackInhomogeneous(xli,X,li,n)
     #Substitute back solution
     x = zeros(n+1)
     for j in 1:length(li)
@@ -36,6 +63,25 @@ function solveUnstructured(A,B;tol=1e15,method="cholesky")
     x = x/x[end]
     X = X/x[end]
     return (x[1:end-1],X[1:end-1,1:end-1])
+end
+
+function optimizeUnstructuredHomogeneous(A,c;tol=1e15,method="cholesky")
+    n = length(A)
+    m = size(A[1],1)
+    d = [zeros(1,)]
+
+    #Get feasible solution
+    (x,X) = solveUnstructuredHomogeneous(A,tol=tol,method=method)
+
+    if x == nothing
+        return (nothing, X[1:end-1,1:end-1])
+    end
+
+
+end
+
+function solveUnstructured(A,B;tol=1e15,method="cholesky")
+    return optimizeUnstructured(A,B,nothing;tol=tol,method=method)
 end
 
 @doc raw"""

@@ -1,8 +1,8 @@
 using LinearAlgebra
 include("solver.jl")
 #Generate Data
-n = 100
-m = 10
+n = 50
+m = 100
 A = Array{Matrix{Float64}}(undef,n)
 for j=1:n
     Z = 10*(rand(m,m) .- 0.5)
@@ -14,7 +14,7 @@ B = B+B'
 ## ---
 #Solve LMI
 
-(x,X) = solveUnstructured(A,B,tol=1e100,method="QR")
+(x,X) = solveUnstructured(A,B,method="QR")
 
 #Check solution
 println("Solution correct: ",isposdef(eval(A,x)+B))
