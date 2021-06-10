@@ -61,20 +61,22 @@ function rref!(A;B=nothing,tol=1e-8)
 end
 
 """
-    selectLIColumns!(A::Matrix{Float64};tol=1e-8)
+    selectLIColumns!(A::Matrix{Float64};basis=false,tol=1e-8)
 
-Selects the linear independent columns from a matrix
+Selects the linear independent columns from the matrix A and computes the
+basis for the null-space of A in column vector form
 """
-function selectLIColumns!(A::Matrix{Float64};tol=1e-8)
+function selectLIColumns!(A::Matrix{Float64};basis=false,tol=1e-8)
     n, m = size(A)
-    perm, l = rref!(A',tol=tol)
+    E = basis ? Matrix{Float64}(I(m)) : nothing
+    perm, l = rref!(A',B=E,tol=tol)
     cols = collect(1:m)
     for k in length(perm):-1:1
         tmp = cols[perm[k][1]]
         cols[perm[k][1]] = cols[perm[k][2]]
         cols[perm[k][2]] = tmp
     end
-    return cols[1:l]
+    return cols[1:l], E[:,l+1:end]
 end
 
 """

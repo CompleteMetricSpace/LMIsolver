@@ -14,6 +14,7 @@ Computes the projection of X onto the range of A in the S-metric
 
 # Returns
 - 'x::Vector{Float64}`: a vector such that Ax is the projection of X
+- 'H::Matrix{Float64}': the cholesky decomposition of the gramian of A w.r.t. S
 """
 function projectUnstructured(A,X,S;method="cholesky")
     n = length(A)
@@ -33,9 +34,10 @@ function projectUnstructured(A,X,S;method="cholesky")
 
         #Solve system Hx = q
         #println("Eigenvals: ",eigvals(H))
-        x = cholesky(H) \ q
+        choleskyGramian = cholesky!(H)
+        x = choleskyGramian \ q
 
-        return x
+        return x, choleskyGramian
 
     elseif method == "QR"
         #TODO Efficiency when using upper-triangular matrices
@@ -48,10 +50,27 @@ function projectUnstructured(A,X,S;method="cholesky")
         q = symToVec(L'*X*L)
         Q, R = qr(B)
         x = UpperTriangular(R) \ (Q'*q)[1:n]
-        return x
+        return x, nothing
     else
         error("Unknown method: method must be either \"cholesky\" or \"QR\"")
     end
+end
+
+"""
+    gramian(A,S)
+
+Computes the gramian w.r.t. to the inner product induces by S
+"""
+function gramian(A,S)
+    n = length(A)
+    H = zeros(n,n)
+    for i in 1:n
+        for j in i:n
+            H[i,j] = tr(S*A[i]*S*A[j])
+            H[j,i] = H[i,j]
+        end
+    end
+    return H
 end
 
 function symToVec(A)
