@@ -17,7 +17,7 @@ Perform a reduction to the reduces row echelon form of (A|B)
 - 'ic::Int64`: the number of non-zero rows
 
 """
-function rref!(A;B=nothing,tol=1e-8)
+function rref!(A,B=nothing;tol=1e-8)
     n, m = size(A)
     mB = (B == nothing) ? 0 : size(B,2)
     perm::Vector{Vector{Int64}} = []
@@ -66,7 +66,7 @@ end
 Selects the linear independent columns from the matrix A and computes the
 basis for the null-space of A in column vector form
 """
-function selectLIColumns!(A::Matrix{Float64};basis=false,tol=1e-8)
+function selectLIColumns!(A;basis=false,tol=1e-8)
     n, m = size(A)
     E = basis ? Matrix{Float64}(I(m)) : nothing
     perm, l = rref!(A',B=E,tol=tol)
@@ -90,4 +90,104 @@ function getNullSpace!(A::Matrix{Float64};tol=1e-8)
     E = Matrix{Float64}(I(m))
     _, l = rref!(A',B=E,tol=tol)
     return E'[:,l+1:end]
+end
+
+
+function eval_LMI(A, B, x)
+    n = length(A)
+    F = copy(B)
+    for i in 1:n
+        axpy!(x[i], A[i], F)
+    end
+    return F
+end
+
+function eval_LMI(A, x)
+    n = length(A)
+    m = size(A[1],1)
+    F = zeros(m,m)
+    for i in 1:n
+        axpy!(x[i], A[i], F)
+    end
+    return F
+end
+
+
+function eval_LMI!(A,B,x,F)
+    n = length(A)
+    F .= B
+    for i in 1:n
+        axpy!(x[i], A[i], F)
+    end
+end
+
+function eval_LMI!(A,x,F)
+    n = length(A)
+    F .= 0.0
+    for i in 1:n
+        axpy!(x[i], A[i], F)
+    end
+end
+
+function eval_LMI_vec!(A,x,F,m)
+    n = size(A,2)
+    Fvec = reshape(F,m^2,1)
+    mul!(Fvec,A,x)
+end
+
+function eval_LMI_cholesky!(A,B,x,F;check=false)
+    n = length(A)
+    m = size(A[1],1)
+    F .= B
+    for i in 1:n
+        axpy!(x[i], A[i], F)
+    end
+    if check
+        if isposdef(Hermitian(F))
+            return true, cholesky(Hermitian(F))
+        else
+            return false, nothing
+        end
+    else
+        return cholesky(Hermitian(F))
+    end
+end
+
+function inner_product(X, Y, S)
+    invS = inv(S)
+    return tr(invS*X*invS*Y)
+end
+
+function negate!(A, B)
+    n = length(A)
+    B .= .-B
+    for i in 1:n
+        A[i] .= .-A[i]
+    end
+end
+
+
+function generate_LMI(n,m;coef=10,feas=true,tol=1,sign=1,app=nothing)
+    nt = n
+    n = isnothing(app) ? n : n+length(app)
+    A = Array{Array{Float64,2}}(undef,n)
+    for i in 1:nt
+        X = coef*(2*rand(m,m).-1)
+        A[i] = X+X'
+    end
+    if !isnothing(app)
+        for i in 1:length(app)
+            A[nt+i] = app[i]
+        end
+    end
+    if feas
+        x = rand(n)
+        X = coef*(2*rand(m,m).-1)
+        B = .-eval_LMI(A, zeros(m,m), x) + sign*tol*X'*X
+        return A, B, x
+    else
+        X = coef*(2*rand(m,m).-1)
+        B = X + X'
+        return A, B, nothing
+    end
 end

@@ -1,8 +1,8 @@
 using LinearAlgebra
 include("solver.jl")
 #Generate Data
-n = 50
-m = 100
+n = 10
+m = 20
 A = Array{Matrix{Float64}}(undef,n)
 for j=1:n
     Z = 10*(rand(m,m) .- 0.5)
